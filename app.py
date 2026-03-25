@@ -1,18 +1,10 @@
-from flask import Flask, jsonify, request, render_template
-import random
 from groq import Groq
+import random
+import streamlit as st
 
+API_KEY = st.secrets["API_KEY"]
+client = Groq(api_key=API_KEY)
 
-
-app = Flask(__name__)
-import os 
-API_KEY= os.getenv("API_KEY")
-
-
-
-# =====================
-# UNO GAME CLASS
-# =====================
 class UnoGame:
 
     def __init__(self):
@@ -20,9 +12,6 @@ class UnoGame:
         self.target_score = 500
         self.start_match()
 
-    # =====================
-    # MATCH / ROUND
-    # =====================
     def start_match(self):
         self.player_score = 0
         self.system_score = 0
@@ -58,9 +47,6 @@ class UnoGame:
         self.message = ""
         self.uno_called = False
 
-    # =====================
-    # DECK
-    # =====================
     def create_deck(self):
         self.deck = []
 
@@ -83,9 +69,6 @@ class UnoGame:
             return None
         return self.deck.pop()
 
-    # =====================
-    # PLAYABLE
-    # =====================
     def playable(self, card):
 
         if card.startswith("Wild"):
@@ -97,9 +80,6 @@ class UnoGame:
 
         return color == self.current_color or value == top_value
 
-    # =====================
-    # PLAYER MOVE
-    # =====================
     def player_play(self, card, chosen_color):
 
         if self.round_over:
@@ -120,7 +100,6 @@ class UnoGame:
 
         extra_turn = self.apply_action(card, "system")
 
-        # UNO logic
         if len(self.player_hand) == 1:
             self.uno_called = False
 
@@ -128,7 +107,6 @@ class UnoGame:
             self.finish_round("player")
             return True
 
-        # LIVE SCORE UPDATE
         self.update_live_score()
 
         if not extra_turn:
@@ -136,9 +114,6 @@ class UnoGame:
 
         return True
 
-    # =====================
-    # SYSTEM TURN
-    # =====================
     def system_turn(self):
 
         if self.round_over:
@@ -169,7 +144,6 @@ class UnoGame:
                 self.finish_round("system")
                 return
 
-            # LIVE SCORE UPDATE
             self.update_live_score()
 
             if extra_turn:
@@ -185,26 +159,20 @@ class UnoGame:
 
             self.turn = "player"
 
-    # =====================
-    # ACTION RULES
-    # =====================
     def apply_action(self, card, target):
 
         hand = self.player_hand if target == "player" else self.system_hand
 
-        # Skip / Reverse (2-player same effect)
         if "Skip" in card or "Reverse" in card:
             self.message = f"{target} skipped"
             return True
 
-        # Draw 2
         if "Draw_2" in card:
             for _ in range(2):
                 hand.append(self.draw_card())
             self.message = f"{target} draws 2 cards"
             return True
 
-        # Draw 4
         if "Wild_Draw_4" in card:
             for _ in range(4):
                 hand.append(self.draw_card())
@@ -213,18 +181,12 @@ class UnoGame:
 
         return False
 
-    # =====================
-    # UNO
-    # =====================
     def call_uno(self):
         if len(self.player_hand) == 1:
             self.uno_called = True
             return True
         return False
 
-    # =====================
-    # LIVE SCORE (RUNNING)
-    # =====================
     def update_live_score(self):
         self.player_score = self.calculate_hand_score(self.system_hand)
         self.system_score = self.calculate_hand_score(self.player_hand)
@@ -241,17 +203,11 @@ class UnoGame:
                 total += int(name.split("_")[-1])
         return total
 
-    # =====================
-    # ROUND END
-    # =====================
     def finish_round(self, winner):
         self.round_over = True
         self.winner = winner
         self.update_live_score()
 
-    # =====================
-    # AI HINT
-    # =====================
     def ai_hint(self):
 
         playable_cards = [c for c in self.player_hand if self.playable(c)]
@@ -262,87 +218,50 @@ class UnoGame:
         return playable_cards[0]
 
 
-game = UnoGame()
+if "game" not in st.session_state:
+    st.session_state.game = UnoGame()
 
-# =====================
-# ROUTES
-# =====================
+game = st.session_state.game
 
-@app.route("/")
-def home():
-    return render_template("index.html")
+st.title("🃏 UNO Game")
 
-
-@app.route("/start")
-def start():
+if st.button("New Match"):
     game.start_match()
-    return state()
 
-
-@app.route("/next")
-def next_round():
+if st.button("Next Round"):
     game.start_round()
-    return state()
 
+st.write(f"**Current Card:** {game.current_card}")
+st.write(f"**Current Color:** {game.current_color}")
+st.write(f"**Your Score:** {game.player_score} | **System Score:** {game.system_score}")
+st.write(f"**Message:** {game.message}")
 
-@app.route("/state")
-def state():
-    return jsonify({
+if game.round_over:
+    st.success(f"Round Over! Winner: {game.winner}")
+else:
+    st.write("### Your Hand:")
+    for card in game.player_hand:
+        if st.button(f"Play {card}", key=card):
+            chosen_color = game.current_color
+            if card.startswith("Wild"):
+                chosen_color = st.selectbox("Choose color", game.colors)
+            game.player_play(card, chosen_color)
 
-        "player_hand": game.player_hand,
-        "system_count": len(game.system_hand),
+    if st.button("Draw Card"):
+        c = game.draw_card()
+        if c:
+            game.player_hand.append(c)
+        game.update_live_score()
+        game.system_turn()
 
-        "current_card": game.current_card,
-        "current_color": game.current_color,
+    if st.button("Call UNO"):
+        result = game.call_uno()
+        st.write("UNO called!" if result else "You don't have UNO yet!")
 
-        "player_score": game.player_score,
-        "system_score": game.system_score,
+    if st.button("Get Hint"):
+        st.write(f"Hint: {game.ai_hint()}")
 
-        "turn": game.turn,
-        "message": game.message,
-
-        "wild_color": game.wild_color,
-
-        "round_over": game.round_over,
-        "winner": game.winner
-    })
-
-
-@app.route("/play", methods=["POST"])
-def play():
-    data = request.json
-    success = game.player_play(data.get("card"), data.get("color"))
-
-    if not success:
-        return jsonify({"error": "Invalid move"})
-
-    return state()
-
-
-@app.route("/draw")
-def draw():
-    c = game.draw_card()
-    if c:
-        game.player_hand.append(c)
-
-    game.update_live_score()
-    game.system_turn()
-
-    return state()
-
-
-@app.route("/uno")
-def uno():
-    return jsonify({"success": game.call_uno()})
-
-
-@app.route("/hint")
-def hint():
-    return jsonify({"hint": game.ai_hint()})
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
+st.write(f"**System has {len(game.system_hand)} cards**")
 
 
 
