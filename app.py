@@ -1,223 +1,262 @@
 import streamlit as st
-import random
 import os
 from groq import Groq
 
 API_KEY = os.environ.get("API_KEY")
 client = Groq(api_key=API_KEY)
 
-class UnoGame:
+st.set_page_config(page_title="UNO Game", layout="wide")
 
-    def __init__(self):
-        self.colors = ["Red", "Blue", "Green", "Yellow"]
-        self.target_score = 500
-        self.start_match()
+html_code = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>UNO Game</title>
 
-    def start_match(self):
-        self.player_score = 0
-        self.system_score = 0
-        self.start_round()
+<style>
+body{
+    background:#1b1b1b;
+    color:white;
+    font-family:Arial;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+}
 
-    def start_round(self):
-        self.create_deck()
-        self.player_hand = [self.draw_card() for _ in range(7)]
-        self.system_hand = [self.draw_card() for _ in range(7)]
-        self.discard = []
-        self.round_over = False
-        self.winner = None
-        self.wild_color = None
-        card = self.draw_card()
-        while card.startswith("Wild_Draw_4"):
-            self.deck.append(card)
-            random.shuffle(self.deck)
-            card = self.draw_card()
-        self.current_card = card
-        if card.startswith("Wild"):
-            self.current_color = random.choice(self.colors)
-        else:
-            self.current_color = card.split("_")[0]
-        self.turn = "player"
-        self.message = ""
-        self.uno_called = False
+h2{margin-bottom:20px;}
 
-    def create_deck(self):
-        self.deck = []
-        for color in self.colors:
-            for i in range(10):
-                self.deck.append(f"{color}_{i}.jpg")
-            self.deck.append(f"{color}_Skip.jpg")
-            self.deck.append(f"{color}_Reverse.jpg")
-            self.deck.append(f"{color}_Draw_2.jpg")
-        for _ in range(4):
-            self.deck.append("Wild.jpg")
-            self.deck.append("Wild_Draw_4.jpg")
-        random.shuffle(self.deck)
+.cards{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:center;
+    min-height:120px;
+}
 
-    def draw_card(self):
-        if not self.deck:
-            return None
-        return self.deck.pop()
+.card-img{
+    width:70px;
+    height:100px;
+    border-radius:10px;
+    object-fit:cover;
+    cursor:grab;
+    transition:0.2s;
+}
 
-    def playable(self, card):
-        if card.startswith("Wild"):
-            return True
-        color = card.split("_")[0]
-        value = card.replace(".jpg", "").split("_")[-1]
-        top_value = self.current_card.replace(".jpg", "").split("_")[-1]
-        return color == self.current_color or value == top_value
+.card-img:hover{
+    transform:translateY(-5px);
+}
 
-    def player_play(self, card, chosen_color):
-        if self.round_over:
-            return False
-        if card not in self.player_hand or not self.playable(card):
-            return False
-        self.player_hand.remove(card)
-        self.discard.append(self.current_card)
-        self.current_card = card
-        self.wild_color = None
-        if card.startswith("Wild"):
-            self.current_color = chosen_color
-        else:
-            self.current_color = card.split("_")[0]
-        extra_turn = self.apply_action(card, "system")
-        if len(self.player_hand) == 1:
-            self.uno_called = False
-        if len(self.player_hand) == 0:
-            self.finish_round("player")
-            return True
-        self.update_live_score()
-        if not extra_turn:
-            self.system_turn()
-        return True
+.card-back{
+    width:70px;
+    height:100px;
+    border-radius:10px;
+    background: radial-gradient(circle at center, #ffeb3b 10%, #e53935 35%, #b71c1c 80%);
+    border:3px solid white;
+    position:relative;
+}
 
-    def system_turn(self):
-        if self.round_over:
-            return
-        playable_cards = [c for c in self.system_hand if self.playable(c)]
-        if playable_cards:
-            card = playable_cards[0]
-            self.system_hand.remove(card)
-            self.discard.append(self.current_card)
-            self.current_card = card
-            if card.startswith("Wild"):
-                color = random.choice(self.colors)
-                self.current_color = color
-                self.wild_color = color
-                self.message = f"System played Wild"
-            else:
-                self.current_color = card.split("_")[0]
-                self.message = f"System played {card}"
-            extra_turn = self.apply_action(card, "player")
-            if len(self.system_hand) == 0:
-                self.finish_round("system")
-                return
-            self.update_live_score()
-            if extra_turn:
-                self.system_turn()
-            else:
-                self.turn = "player"
-        else:
-            new = self.draw_card()
-            if new:
-                self.system_hand.append(new)
-                self.message = "System draws a card"
-            self.turn = "player"
+.card-back::before{
+    content:"";
+    position:absolute;
+    width:80%;
+    height:50%;
+    background:white;
+    border-radius:50%;
+    top:25%;
+    left:10%;
+    transform:rotate(-20deg);
+}
 
-    def apply_action(self, card, target):
-        hand = self.player_hand if target == "player" else self.system_hand
-        if "Skip" in card or "Reverse" in card:
-            self.message = f"{target} skipped"
-            return True
-        if "Draw_2" in card:
-            for _ in range(2):
-                hand.append(self.draw_card())
-            self.message = f"{target} draws 2 cards"
-            return True
-        if "Wild_Draw_4" in card:
-            for _ in range(4):
-                hand.append(self.draw_card())
-            self.message = f"{target} draws 4 cards"
-            return True
-        return False
+.card-back::after{
+    content:"UNO";
+    position:absolute;
+    top:35%;
+    left:28%;
+    color:red;
+    font-weight:bold;
+    font-size:18px;
+    transform:rotate(-20deg);
+}
 
-    def call_uno(self):
-        if len(self.player_hand) == 1:
-            self.uno_called = True
-            return True
-        return False
+.play-area{
+    width:150px;
+    height:200px;
+    border:3px dashed white;
+    border-radius:15px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:20px;
+}
 
-    def update_live_score(self):
-        self.player_score = self.calculate_hand_score(self.system_hand)
-        self.system_score = self.calculate_hand_score(self.player_hand)
+.deck{
+    width:70px;
+    height:100px;
+    background:#333;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    margin-bottom:10px;
+}
+</style>
+</head>
+<body>
 
-    def calculate_hand_score(self, hand):
-        total = 0
-        for c in hand:
-            name = c.replace(".jpg", "")
-            if "Wild" in name:
-                total += 50
-            elif any(x in name for x in ["Skip", "Reverse", "Draw_2"]):
-                total += 20
-            else:
-                total += int(name.split("_")[-1])
-        return total
+<h2>UNO Game</h2>
 
-    def finish_round(self, winner):
-        self.round_over = True
-        self.winner = winner
-        self.update_live_score()
+<h3>System</h3>
+<div class="cards" id="system-cards"></div>
 
-    def ai_hint(self):
-        playable_cards = [c for c in self.player_hand if self.playable(c)]
-        if not playable_cards:
-            return "Draw"
-        return playable_cards[0]
+<div class="deck" id="draw-deck">DRAW</div>
 
+<div class="play-area" id="play-area"></div>
 
-if "game" not in st.session_state:
-    st.session_state.game = UnoGame()
+<h3>User</h3>
+<div class="cards" id="user-cards"></div>
 
-game = st.session_state.game
+<script>
+const colors=["Red","Yellow","Green","Blue"];
+const numbers=["0","1","2","3","4","5","6","7","8","9"];
+const wilds=["Wild"];
 
-st.title("🃏 UNO Game")
+let deck=[];
+let userHand=[];
+let systemHand=[];
+let topCard=null;
 
-if st.button("New Match"):
-    game.start_match()
+function createDeck(){
+    deck=[];
+    colors.forEach(color=>{
+        numbers.forEach(num=>{
+            deck.push(color+"_"+num);
+        });
+    });
+    wilds.forEach(w=>{
+        deck.push(w);
+    });
+}
 
-if st.button("Next Round"):
-    game.start_round()
+function shuffle(){
+    deck.sort(()=>Math.random()-0.5);
+}
 
-st.write(f"**Current Card:** {game.current_card}")
-st.write(f"**Current Color:** {game.current_color}")
-st.write(f"**Your Score:** {game.player_score} | **System Score:** {game.system_score}")
-st.write(f"**Message:** {game.message}")
+function deal(){
+    userHand=deck.splice(0,7);
+    systemHand=deck.splice(0,7);
+    topCard=deck.pop();
+}
 
-if game.round_over:
-    st.success(f"Round Over! Winner: {game.winner}")
-else:
-    st.write("### Your Hand:")
-    for card in game.player_hand:
-        if st.button(f"Play {card}", key=card):
-            chosen_color = game.current_color
-            if card.startswith("Wild"):
-                chosen_color = st.selectbox("Choose color", game.colors)
-            game.player_play(card, chosen_color)
+function render(){
+    renderUser();
+    renderSystem();
+    renderTop();
+}
 
-    if st.button("Draw Card"):
-        c = game.draw_card()
-        if c:
-            game.player_hand.append(c)
-        game.update_live_score()
-        game.system_turn()
+function renderUser(){
+    const container=document.getElementById("user-cards");
+    container.innerHTML="";
+    userHand.forEach((card,index)=>{
+        const img=document.createElement("img");
+        img.src="https://raw.githubusercontent.com/Bishalakshi/Aiproject/main/static/"+card+".jpg";
+        img.className="card-img";
+        img.draggable=true;
 
-    if st.button("Call UNO"):
-        result = game.call_uno()
-        st.write("UNO called!" if result else "You don't have UNO yet!")
+        img.ondragstart=(e)=>{
+            e.dataTransfer.setData("index",index);
+        };
 
-    if st.button("Get Hint"):
-        st.write(f"Hint: {game.ai_hint()}")
+        img.onerror=function(){
+            this.style.display='none';
+            const div=document.createElement("div");
+            div.style.cssText="width:70px;height:100px;border-radius:10px;background:#444;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;text-align:center;padding:5px;";
+            div.innerText=card;
+            this.parentNode.appendChild(div);
+        };
 
-st.write(f"**System has {len(game.system_hand)} cards**")
+        container.appendChild(img);
+    });
+}
+
+function renderSystem(){
+    const container=document.getElementById("system-cards");
+    container.innerHTML="";
+    systemHand.forEach(()=>{
+        const div=document.createElement("div");
+        div.className="card-back";
+        container.appendChild(div);
+    });
+}
+
+function renderTop(){
+    const area=document.getElementById("play-area");
+    area.innerHTML="";
+    const img=document.createElement("img");
+    img.src="https://raw.githubusercontent.com/Bishalakshi/Aiproject/main/static/"+topCard+".jpg";
+    img.className="card-img";
+    img.style="width:120px;height:180px;";
+    area.appendChild(img);
+}
+
+function isValid(card){
+    if(card==="Wild") return true;
+    const topParts=topCard.split("_");
+    const cardParts=card.split("_");
+    return topParts[0]===cardParts[0] || topParts[1]===cardParts[1];
+}
+
+document.getElementById("play-area").ondragover=(e)=>e.preventDefault();
+
+document.getElementById("play-area").ondrop=(e)=>{
+    const index=e.dataTransfer.getData("index");
+    const selected=userHand[index];
+    if(isValid(selected)){
+        topCard=selected;
+        userHand.splice(index,1);
+        render();
+        setTimeout(aiMove,1000);
+    }else{
+        alert("Invalid move!");
+    }
+};
+
+document.getElementById("draw-deck").onclick=()=>{
+    if(deck.length>0){
+        userHand.push(deck.pop());
+        render();
+    }
+};
+
+function aiMove(){
+    let played=false;
+    for(let i=0;i<systemHand.length;i++){
+        if(isValid(systemHand[i])){
+            topCard=systemHand[i];
+            systemHand.splice(i,1);
+            played=true;
+            break;
+        }
+    }
+    if(!played && deck.length>0){
+        systemHand.push(deck.pop());
+    }
+    render();
+}
+
+createDeck();
+shuffle();
+deal();
+render();
+</script>
+
+</body>
+</html>
+"""
+
+st.components.v1.html(html_code, height=800, scrolling=True)
 
 
 
