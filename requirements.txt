@@ -150,4 +150,4 @@ yt-dlp==2026.2.4
 zstandard==0.25.0
 streamlit
 groq
-scipy==1.11.4
+
