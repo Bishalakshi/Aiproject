@@ -157,7 +157,23 @@ h2{margin-bottom:20px;}
     text-align:center;
 }
 
-/* WINNER POPUP */
+.color-picker{
+    display:none;
+    gap:10px;
+    margin:10px;
+    justify-content:center;
+}
+
+.color-btn{
+    width:50px;
+    height:50px;
+    border-radius:50%;
+    border:3px solid white;
+    cursor:pointer;
+    font-size:12px;
+    font-weight:bold;
+}
+
 .popup-overlay{
     display:none;
     position:fixed;
@@ -213,7 +229,6 @@ h2{margin-bottom:20px;}
 
 <h2>🃏 UNO Game</h2>
 
-<!-- SCOREBOARD -->
 <div class="scoreboard">
     <div class="score-box">
         👤 Your Score<br>
@@ -235,11 +250,20 @@ h2{margin-bottom:20px;}
 
 <div class="play-area" id="play-area"></div>
 
+<!-- COLOR PICKER FOR WILD -->
+<div class="color-picker" id="color-picker">
+    <button class="color-btn" style="background:red" onclick="chooseColor('Red')">Red</button>
+    <button class="color-btn" style="background:blue" onclick="chooseColor('Blue')">Blue</button>
+    <button class="color-btn" style="background:green" onclick="chooseColor('Green')">Green</button>
+    <button class="color-btn" style="background:#FFD700;color:black" onclick="chooseColor('Yellow')">Yellow</button>
+</div>
+
 <h3>👤 Your Hand</h3>
 <div class="cards" id="user-cards"></div>
 
 <br>
 <button class="btn" onclick="getHint()">💡 AI Hint</button>
+<button class="btn" onclick="callUno()">🗣️ UNO!</button>
 <button class="btn" onclick="restartGame()">🔄 Restart</button>
 <div class="hint-box" id="hint-box">Hint will appear here...</div>
 
@@ -254,8 +278,11 @@ let deck = [];
 let userHand = [];
 let systemHand = [];
 let topCard = null;
+let currentColor = null;
 let userScore = 0;
 let systemScore = 0;
+let pendingWildCard = null;
+let playerTurn = true;
 
 // =====================
 // DECK
@@ -264,28 +291,45 @@ function createDeck(){
     deck = [];
     colors.forEach(color => {
         numbers.forEach(num => {
-            deck.push(color + "_" + num);
+            deck.push(color + "_" + num + ".jpg");
         });
         specials.forEach(sp => {
-            deck.push(color + "_" + sp);
+            deck.push(color + "_" + sp + ".jpg");
         });
     });
-    wilds.forEach(w => {
-        deck.push(w);
-        deck.push(w);
-        deck.push(w);
-        deck.push(w);
-    });
+    for(let i=0;i<4;i++){
+        deck.push("Wild.jpg");
+        deck.push("Wild_Draw_4.jpg");
+    }
 }
 
 function shuffle(){
     deck.sort(() => Math.random() - 0.5);
 }
 
+function drawCard(){
+    if(deck.length === 0) return null;
+    return deck.pop();
+}
+
 function deal(){
-    userHand = deck.splice(0, 7);
-    systemHand = deck.splice(0, 7);
-    topCard = deck.pop();
+    userHand = [];
+    systemHand = [];
+    for(let i=0;i<7;i++){
+        userHand.push(drawCard());
+        systemHand.push(drawCard());
+    }
+    // make sure first card is not Wild_Draw_4
+    do {
+        topCard = drawCard();
+    } while(topCard === "Wild_Draw_4.jpg");
+
+    if(topCard.startsWith("Wild")){
+        currentColor = colors[Math.floor(Math.random()*colors.length)];
+    } else {
+        currentColor = topCard.split("_")[0];
+    }
+    playerTurn = true;
 }
 
 // =====================
@@ -294,15 +338,18 @@ function deal(){
 function cardScore(card){
     if(card.includes("Wild")) return 50;
     if(card.includes("Skip") || card.includes("Reverse") || card.includes("Draw_2")) return 20;
-    const num = parseInt(card.split("_").pop());
+    const parts = card.replace(".jpg","").split("_");
+    const num = parseInt(parts[parts.length-1]);
     return isNaN(num) ? 0 : num;
 }
 
 function updateScore(){
-    userScore = systemHand.reduce((s, c) => s + cardScore(c), 0);
-    systemScore = userHand.reduce((s, c) => s + cardScore(c), 0);
+    // player score = value of system's hand (what you'd win)
+    userScore = systemHand.reduce((s,c) => s + cardScore(c), 0);
+    systemScore = userHand.reduce((s,c) => s + cardScore(c), 0);
     document.getElementById("user-score").innerText = userScore;
     document.getElementById("system-score").innerText = systemScore;
+    document.getElementById("system-count").innerText = systemHand.length;
 }
 
 // =====================
@@ -313,35 +360,38 @@ function render(){
     renderSystem();
     renderTop();
     updateScore();
-    document.getElementById("system-count").innerText = systemHand.length;
 }
 
 function makeCardImg(card, draggable, index){
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "relative";
+
     const img = document.createElement("img");
-    img.src = GITHUB_RAW + card + ".jpg";
+    img.src = GITHUB_RAW + card;
     img.className = "card-img";
     img.draggable = draggable;
-    img.title = card;
+    img.title = card.replace(".jpg","");
 
     img.onerror = function(){
-        this.style.display = 'none';
+        this.style.display = "none";
         const div = document.createElement("div");
         div.style.cssText = "width:70px;height:100px;border-radius:10px;background:#555;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;text-align:center;padding:5px;cursor:grab;";
-        div.innerText = card;
+        div.innerText = card.replace(".jpg","");
         if(draggable){
             div.draggable = true;
             div.ondragstart = (e) => { e.dataTransfer.setData("index", index); };
+            div.onclick = () => { playCard(index); };
         }
-        this.parentNode.appendChild(div);
+        wrapper.appendChild(div);
     };
 
     if(draggable){
-        img.ondragstart = (e) => {
-            e.dataTransfer.setData("index", index);
-        };
+        img.ondragstart = (e) => { e.dataTransfer.setData("index", index); };
+        img.onclick = () => { playCard(index); };
     }
 
-    return img;
+    wrapper.appendChild(img);
+    return wrapper;
 }
 
 function renderUser(){
@@ -365,9 +415,22 @@ function renderSystem(){
 function renderTop(){
     const area = document.getElementById("play-area");
     area.innerHTML = "";
-    const img = makeCardImg(topCard, false, -1);
+    const img = document.createElement("img");
+    img.src = GITHUB_RAW + topCard;
+    img.className = "card-img";
     img.style.width = "120px";
     img.style.height = "180px";
+    img.style.borderRadius = "10px";
+
+    // show current color indicator if wild
+    if(topCard.includes("Wild")){
+        const colorDiv = document.createElement("div");
+        colorDiv.style.cssText = "position:absolute;bottom:-25px;font-size:12px;color:#ffeb3b;";
+        colorDiv.innerText = "Color: " + currentColor;
+        area.style.position = "relative";
+        area.appendChild(colorDiv);
+    }
+
     area.appendChild(img);
 }
 
@@ -376,46 +439,100 @@ function renderTop(){
 // =====================
 function isValid(card){
     if(card.includes("Wild")) return true;
-    const topParts = topCard.split("_");
-    const cardParts = card.split("_");
-    return topParts[0] === cardParts[0] || topParts[1] === cardParts[1];
+    const cardColor = card.split("_")[0];
+    const cardVal = card.replace(".jpg","").split("_").pop();
+    const topVal = topCard.replace(".jpg","").split("_").pop();
+    return cardColor === currentColor || cardVal === topVal;
 }
 
 // =====================
-// DRAG & DROP PLAY
+// PLAY CARD (click or drag)
+// =====================
+function playCard(index){
+    if(!playerTurn) return;
+    const selected = userHand[index];
+    if(!isValid(selected)){
+        setMessage("❌ Invalid move! Must match color or value.");
+        return;
+    }
+
+    if(selected.includes("Wild")){
+        pendingWildCard = {card: selected, index: index};
+        document.getElementById("color-picker").style.display = "flex";
+        setMessage("🎨 Choose a color for your Wild card!");
+        return;
+    }
+
+    applyPlayerCard(selected, index, currentColor);
+}
+
+function chooseColor(color){
+    document.getElementById("color-picker").style.display = "none";
+    if(pendingWildCard){
+        applyPlayerCard(pendingWildCard.card, pendingWildCard.index, color);
+        pendingWildCard = null;
+    }
+}
+
+function applyPlayerCard(card, index, chosenColor){
+    userHand.splice(index, 1);
+    topCard = card;
+    currentColor = card.includes("Wild") ? chosenColor : card.split("_")[0];
+    setMessage("You played " + card.replace(".jpg",""));
+
+    // apply special actions
+    if(card.includes("Skip") || card.includes("Reverse")){
+        render();
+        setMessage("System is skipped! Your turn again.");
+        return; // player gets another turn
+    }
+
+    if(card.includes("Draw_2")){
+        for(let i=0;i<2;i++) { const c=drawCard(); if(c) systemHand.push(c); }
+        setMessage("System draws 2 cards! Your turn again.");
+        render();
+        return;
+    }
+
+    if(card.includes("Wild_Draw_4")){
+        for(let i=0;i<4;i++) { const c=drawCard(); if(c) systemHand.push(c); }
+        setMessage("System draws 4 cards! Your turn again.");
+        render();
+        return;
+    }
+
+    render();
+
+    if(userHand.length === 0){
+        showWinner("user");
+        return;
+    }
+
+    playerTurn = false;
+    setTimeout(aiMove, 1200);
+}
+
+// =====================
+// DRAG & DROP
 // =====================
 document.getElementById("play-area").ondragover = (e) => e.preventDefault();
-
 document.getElementById("play-area").ondrop = (e) => {
-    const index = e.dataTransfer.getData("index");
-    const selected = userHand[index];
-
-    if(isValid(selected)){
-        topCard = selected;
-        userHand.splice(index, 1);
-        setMessage("You played " + selected);
-        render();
-
-        if(userHand.length === 0){
-            showWinner("user");
-            return;
-        }
-
-        setTimeout(aiMove, 1000);
-    } else {
-        alert("❌ Invalid move! Card must match color or number.");
-    }
+    const index = parseInt(e.dataTransfer.getData("index"));
+    playCard(index);
 };
 
 // =====================
 // DRAW
 // =====================
 document.getElementById("draw-deck").onclick = () => {
-    if(deck.length > 0){
-        userHand.push(deck.pop());
-        setMessage("You drew a card.");
+    if(!playerTurn) return;
+    const c = drawCard();
+    if(c){
+        userHand.push(c);
+        setMessage("You drew: " + c.replace(".jpg",""));
         render();
-        setTimeout(aiMove, 1000);
+        playerTurn = false;
+        setTimeout(aiMove, 1200);
     } else {
         setMessage("Deck is empty!");
     }
@@ -425,27 +542,82 @@ document.getElementById("draw-deck").onclick = () => {
 // AI MOVE
 // =====================
 function aiMove(){
-    let played = false;
+    if(systemHand.length === 0){ showWinner("system"); return; }
 
-    for(let i = 0; i < systemHand.length; i++){
-        if(isValid(systemHand[i])){
-            topCard = systemHand[i];
-            systemHand.splice(i, 1);
-            played = true;
-            setMessage("🤖 System played " + topCard);
-            break;
+    const playable = systemHand.filter(c => isValid(c));
+
+    if(playable.length > 0){
+        // prefer non-wild first, then wild
+        let card = playable.find(c => !c.includes("Wild")) || playable[0];
+        const idx = systemHand.indexOf(card);
+        systemHand.splice(idx, 1);
+        topCard = card;
+
+        if(card.includes("Wild")){
+            // system picks color with most cards
+            const colorCount = {};
+            colors.forEach(c => colorCount[c] = 0);
+            systemHand.forEach(c => {
+                const col = c.split("_")[0];
+                if(colorCount[col] !== undefined) colorCount[col]++;
+            });
+            currentColor = Object.keys(colorCount).reduce((a,b) => colorCount[a]>colorCount[b]?a:b);
+            setMessage("🤖 System played Wild and chose " + currentColor);
+        } else {
+            currentColor = card.split("_")[0];
+            setMessage("🤖 System played " + card.replace(".jpg",""));
         }
-    }
 
-    if(!played && deck.length > 0){
-        systemHand.push(deck.pop());
-        setMessage("🤖 System drew a card.");
+        // apply special actions against player
+        if(card.includes("Skip") || card.includes("Reverse")){
+            render();
+            setMessage("🤖 System skipped your turn! System plays again.");
+            setTimeout(aiMove, 1200);
+            return;
+        }
+
+        if(card.includes("Draw_2")){
+            for(let i=0;i<2;i++) { const c=drawCard(); if(c) userHand.push(c); }
+            setMessage("🤖 System played Draw 2! You draw 2 cards.");
+            render();
+            setTimeout(aiMove, 1200);
+            return;
+        }
+
+        if(card.includes("Wild_Draw_4")){
+            for(let i=0;i<4;i++) { const c=drawCard(); if(c) userHand.push(c); }
+            setMessage("🤖 System played Wild Draw 4! You draw 4 cards.");
+            render();
+            setTimeout(aiMove, 1200);
+            return;
+        }
+
+    } else {
+        const c = drawCard();
+        if(c){
+            systemHand.push(c);
+            setMessage("🤖 System drew a card.");
+        }
     }
 
     render();
 
     if(systemHand.length === 0){
         showWinner("system");
+        return;
+    }
+
+    playerTurn = true;
+}
+
+// =====================
+// UNO CALL
+// =====================
+function callUno(){
+    if(userHand.length === 1){
+        setMessage("🗣️ UNO! You called it!");
+    } else {
+        setMessage("⚠️ You can only call UNO with 1 card left!");
     }
 }
 
@@ -463,7 +635,6 @@ function showWinner(winner){
     const overlay = document.getElementById("popup-overlay");
     const msg = document.getElementById("popup-msg");
     const emoji = document.getElementById("popup-emoji");
-
     if(winner === "user"){
         emoji.innerText = "🎉";
         msg.innerText = "You Win! Congratulations!";
@@ -471,7 +642,6 @@ function showWinner(winner){
         emoji.innerText = "😢";
         msg.innerText = "System Wins! Better luck next time!";
     }
-
     overlay.classList.add("show");
 }
 
@@ -481,6 +651,9 @@ function showWinner(winner){
 function restartGame(){
     document.getElementById("popup-overlay").classList.remove("show");
     document.getElementById("hint-box").style.display = "none";
+    document.getElementById("color-picker").style.display = "none";
+    pendingWildCard = null;
+    playerTurn = true;
     createDeck();
     shuffle();
     deal();
@@ -489,7 +662,7 @@ function restartGame(){
 }
 
 // =====================
-// AI HINT (Groq)
+// AI HINT
 // =====================
 async function getHint(){
     const hintBox = document.getElementById("hint-box");
@@ -508,22 +681,21 @@ async function getHint(){
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": "Bearer """ + API_KEY + """"
+                "Authorization": "Bearer """ + (API_KEY or "") + """"
             },
             body: JSON.stringify({
                 model: "llama3-8b-8192",
                 messages: [{
                     role: "user",
-                    content: "You are an UNO expert. Top card: " + topCard + ". My playable cards: " + playable.join(", ") + ". System has " + systemHand.length + " cards. Which card should I play and why? Keep it under 2 sentences."
+                    content: "You are an UNO expert. Top card: " + topCard.replace('.jpg','') + ". Current color: " + currentColor + ". My playable cards: " + playable.map(c=>c.replace('.jpg','')).join(", ") + ". System has " + systemHand.length + " cards. Which card should I play and why? Keep it under 2 sentences."
                 }],
                 max_tokens: 100
             })
         });
-
         const data = await response.json();
         hintBox.innerText = "💡 " + data.choices[0].message.content;
     } catch(e) {
-        hintBox.innerText = "💡 Best card to play: " + playable[0];
+        hintBox.innerText = "💡 Best card to play: " + playable[0].replace(".jpg","");
     }
 }
 
@@ -540,15 +712,4 @@ render();
 </html>
 """
 
-st.components.v1.html(html_code, height=900, scrolling=True)
-
-
-
-
-
-
-
-
-
-
-
+st.components.v1.html(html_code, height=950, scrolling=True)
