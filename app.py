@@ -2,7 +2,7 @@ from groq import Groq
 import random
 import streamlit as st
 
-API_KEY = st.secrets["API_KEY"]
+API_KEY = os.environ.get("API_KEY")
 client = Groq(api_key=API_KEY)
 
 class UnoGame:
