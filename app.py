@@ -22,23 +22,27 @@ body{
     display:flex;
     flex-direction:column;
     align-items:center;
-    padding:20px;
+    padding:5px;
+    transform:scale(0.85);
+    transform-origin:top center;
+    overflow:hidden;
 }
 
-h2{margin-bottom:20px;}
+h2{ margin-bottom:5px; font-size:20px; }
+h3{ margin:3px 0; font-size:15px; }
 
 .cards{
     display:flex;
-    gap:10px;
+    gap:6px;
     flex-wrap:wrap;
     justify-content:center;
-    min-height:120px;
+    min-height:85px;
 }
 
 .card-img{
-    width:70px;
-    height:100px;
-    border-radius:10px;
+    width:55px;
+    height:80px;
+    border-radius:8px;
     object-fit:cover;
     cursor:grab;
     transition:0.2s;
@@ -49,9 +53,9 @@ h2{margin-bottom:20px;}
 }
 
 .card-back{
-    width:70px;
-    height:100px;
-    border-radius:10px;
+    width:55px;
+    height:80px;
+    border-radius:8px;
     background: radial-gradient(circle at center, #ffeb3b 10%, #e53935 35%, #b71c1c 80%);
     border:3px solid white;
     position:relative;
@@ -76,59 +80,62 @@ h2{margin-bottom:20px;}
     left:28%;
     color:red;
     font-weight:bold;
-    font-size:18px;
+    font-size:14px;
     transform:rotate(-20deg);
 }
 
 .play-area{
-    width:150px;
-    height:200px;
+    width:110px;
+    height:150px;
     border:3px dashed white;
     border-radius:15px;
     display:flex;
     align-items:center;
     justify-content:center;
-    margin:20px;
+    margin:8px;
+    position:relative;
 }
 
 .deck{
-    width:70px;
-    height:100px;
+    width:55px;
+    height:80px;
     background:#333;
-    border-radius:10px;
+    border-radius:8px;
     display:flex;
     align-items:center;
     justify-content:center;
     cursor:pointer;
-    margin-bottom:10px;
+    margin-bottom:5px;
     color:white;
     font-weight:bold;
+    font-size:12px;
 }
 
 .scoreboard{
     display:flex;
-    gap:40px;
-    margin:10px 0;
-    font-size:18px;
+    gap:30px;
+    margin:5px 0;
+    font-size:15px;
     font-weight:bold;
 }
 
 .score-box{
     background:#333;
-    padding:10px 20px;
+    padding:6px 15px;
     border-radius:10px;
     text-align:center;
+    font-size:15px;
 }
 
 .btn{
     background:#e53935;
     color:white;
     border:none;
-    padding:10px 20px;
+    padding:7px 14px;
     border-radius:10px;
     cursor:pointer;
-    font-size:16px;
-    margin:5px;
+    font-size:13px;
+    margin:3px;
 }
 
 .btn:hover{
@@ -137,40 +144,40 @@ h2{margin-bottom:20px;}
 
 .hint-box{
     background:#333;
-    padding:10px 20px;
+    padding:8px 15px;
     border-radius:10px;
-    margin:10px;
-    font-size:14px;
-    min-width:300px;
+    margin:5px;
+    font-size:13px;
+    min-width:280px;
     text-align:center;
     display:none;
 }
 
 .message-box{
     background:#444;
-    padding:8px 20px;
+    padding:6px 20px;
     border-radius:10px;
-    margin:5px;
-    font-size:14px;
+    margin:4px;
+    font-size:13px;
     color:#ffeb3b;
-    min-height:30px;
+    min-height:25px;
     text-align:center;
 }
 
 .color-picker{
     display:none;
     gap:10px;
-    margin:10px;
+    margin:5px;
     justify-content:center;
 }
 
 .color-btn{
-    width:50px;
-    height:50px;
+    width:40px;
+    height:40px;
     border-radius:50%;
     border:3px solid white;
     cursor:pointer;
-    font-size:12px;
+    font-size:10px;
     font-weight:bold;
 }
 
@@ -193,25 +200,25 @@ h2{margin-bottom:20px;}
     background:#222;
     border:3px solid #ffeb3b;
     border-radius:20px;
-    padding:40px;
+    padding:30px;
     text-align:center;
-    font-size:24px;
+    font-size:20px;
     font-weight:bold;
 }
 
 .popup-box h1{
-    font-size:48px;
+    font-size:40px;
     margin-bottom:10px;
 }
 
 .popup-box button{
-    margin-top:20px;
+    margin-top:15px;
     background:#e53935;
     color:white;
     border:none;
-    padding:12px 30px;
+    padding:10px 25px;
     border-radius:10px;
-    font-size:18px;
+    font-size:16px;
     cursor:pointer;
 }
 </style>
@@ -250,7 +257,6 @@ h2{margin-bottom:20px;}
 
 <div class="play-area" id="play-area"></div>
 
-<!-- COLOR PICKER FOR WILD -->
 <div class="color-picker" id="color-picker">
     <button class="color-btn" style="background:red" onclick="chooseColor('Red')">Red</button>
     <button class="color-btn" style="background:blue" onclick="chooseColor('Blue')">Blue</button>
@@ -284,9 +290,6 @@ let systemScore = 0;
 let pendingWildCard = null;
 let playerTurn = true;
 
-// =====================
-// DECK
-// =====================
 function createDeck(){
     deck = [];
     colors.forEach(color => {
@@ -319,7 +322,6 @@ function deal(){
         userHand.push(drawCard());
         systemHand.push(drawCard());
     }
-    // make sure first card is not Wild_Draw_4
     do {
         topCard = drawCard();
     } while(topCard === "Wild_Draw_4.jpg");
@@ -332,9 +334,6 @@ function deal(){
     playerTurn = true;
 }
 
-// =====================
-// SCORE
-// =====================
 function cardScore(card){
     if(card.includes("Wild")) return 50;
     if(card.includes("Skip") || card.includes("Reverse") || card.includes("Draw_2")) return 20;
@@ -344,7 +343,6 @@ function cardScore(card){
 }
 
 function updateScore(){
-    // player score = value of system's hand (what you'd win)
     userScore = systemHand.reduce((s,c) => s + cardScore(c), 0);
     systemScore = userHand.reduce((s,c) => s + cardScore(c), 0);
     document.getElementById("user-score").innerText = userScore;
@@ -352,9 +350,6 @@ function updateScore(){
     document.getElementById("system-count").innerText = systemHand.length;
 }
 
-// =====================
-// RENDER
-// =====================
 function render(){
     renderUser();
     renderSystem();
@@ -375,7 +370,7 @@ function makeCardImg(card, draggable, index){
     img.onerror = function(){
         this.style.display = "none";
         const div = document.createElement("div");
-        div.style.cssText = "width:70px;height:100px;border-radius:10px;background:#555;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;text-align:center;padding:5px;cursor:grab;";
+        div.style.cssText = "width:55px;height:80px;border-radius:8px;background:#555;display:flex;align-items:center;justify-content:center;color:white;font-size:9px;text-align:center;padding:3px;cursor:grab;";
         div.innerText = card.replace(".jpg","");
         if(draggable){
             div.draggable = true;
@@ -418,25 +413,20 @@ function renderTop(){
     const img = document.createElement("img");
     img.src = GITHUB_RAW + topCard;
     img.className = "card-img";
-    img.style.width = "120px";
-    img.style.height = "180px";
+    img.style.width = "90px";
+    img.style.height = "130px";
     img.style.borderRadius = "10px";
 
-    // show current color indicator if wild
     if(topCard.includes("Wild")){
         const colorDiv = document.createElement("div");
-        colorDiv.style.cssText = "position:absolute;bottom:-25px;font-size:12px;color:#ffeb3b;";
+        colorDiv.style.cssText = "position:absolute;bottom:-20px;font-size:11px;color:#ffeb3b;";
         colorDiv.innerText = "Color: " + currentColor;
-        area.style.position = "relative";
         area.appendChild(colorDiv);
     }
 
     area.appendChild(img);
 }
 
-// =====================
-// VALID MOVE
-// =====================
 function isValid(card){
     if(card.includes("Wild")) return true;
     const cardColor = card.split("_")[0];
@@ -445,9 +435,6 @@ function isValid(card){
     return cardColor === currentColor || cardVal === topVal;
 }
 
-// =====================
-// PLAY CARD (click or drag)
-// =====================
 function playCard(index){
     if(!playerTurn) return;
     const selected = userHand[index];
@@ -455,14 +442,12 @@ function playCard(index){
         setMessage("❌ Invalid move! Must match color or value.");
         return;
     }
-
     if(selected.includes("Wild")){
         pendingWildCard = {card: selected, index: index};
         document.getElementById("color-picker").style.display = "flex";
         setMessage("🎨 Choose a color for your Wild card!");
         return;
     }
-
     applyPlayerCard(selected, index, currentColor);
 }
 
@@ -480,11 +465,10 @@ function applyPlayerCard(card, index, chosenColor){
     currentColor = card.includes("Wild") ? chosenColor : card.split("_")[0];
     setMessage("You played " + card.replace(".jpg",""));
 
-    // apply special actions
     if(card.includes("Skip") || card.includes("Reverse")){
         render();
         setMessage("System is skipped! Your turn again.");
-        return; // player gets another turn
+        return;
     }
 
     if(card.includes("Draw_2")){
@@ -512,18 +496,12 @@ function applyPlayerCard(card, index, chosenColor){
     setTimeout(aiMove, 1200);
 }
 
-// =====================
-// DRAG & DROP
-// =====================
 document.getElementById("play-area").ondragover = (e) => e.preventDefault();
 document.getElementById("play-area").ondrop = (e) => {
     const index = parseInt(e.dataTransfer.getData("index"));
     playCard(index);
 };
 
-// =====================
-// DRAW
-// =====================
 document.getElementById("draw-deck").onclick = () => {
     if(!playerTurn) return;
     const c = drawCard();
@@ -538,23 +516,18 @@ document.getElementById("draw-deck").onclick = () => {
     }
 };
 
-// =====================
-// AI MOVE
-// =====================
 function aiMove(){
     if(systemHand.length === 0){ showWinner("system"); return; }
 
     const playable = systemHand.filter(c => isValid(c));
 
     if(playable.length > 0){
-        // prefer non-wild first, then wild
         let card = playable.find(c => !c.includes("Wild")) || playable[0];
         const idx = systemHand.indexOf(card);
         systemHand.splice(idx, 1);
         topCard = card;
 
         if(card.includes("Wild")){
-            // system picks color with most cards
             const colorCount = {};
             colors.forEach(c => colorCount[c] = 0);
             systemHand.forEach(c => {
@@ -568,7 +541,6 @@ function aiMove(){
             setMessage("🤖 System played " + card.replace(".jpg",""));
         }
 
-        // apply special actions against player
         if(card.includes("Skip") || card.includes("Reverse")){
             render();
             setMessage("🤖 System skipped your turn! System plays again.");
@@ -610,9 +582,6 @@ function aiMove(){
     playerTurn = true;
 }
 
-// =====================
-// UNO CALL
-// =====================
 function callUno(){
     if(userHand.length === 1){
         setMessage("🗣️ UNO! You called it!");
@@ -621,16 +590,10 @@ function callUno(){
     }
 }
 
-// =====================
-// MESSAGE
-// =====================
 function setMessage(msg){
     document.getElementById("message-box").innerText = msg;
 }
 
-// =====================
-// WINNER POPUP
-// =====================
 function showWinner(winner){
     const overlay = document.getElementById("popup-overlay");
     const msg = document.getElementById("popup-msg");
@@ -645,9 +608,6 @@ function showWinner(winner){
     overlay.classList.add("show");
 }
 
-// =====================
-// RESTART
-// =====================
 function restartGame(){
     document.getElementById("popup-overlay").classList.remove("show");
     document.getElementById("hint-box").style.display = "none";
@@ -661,9 +621,6 @@ function restartGame(){
     render();
 }
 
-// =====================
-// AI HINT
-// =====================
 async function getHint(){
     const hintBox = document.getElementById("hint-box");
     hintBox.style.display = "block";
@@ -681,7 +638,7 @@ async function getHint(){
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": "Bearer """ + (API_KEY or "") + """"
+                "Authorization": "Bearer """ + (API_KEY if API_KEY else "") + """"
             },
             body: JSON.stringify({
                 model: "llama3-8b-8192",
@@ -699,9 +656,6 @@ async function getHint(){
     }
 }
 
-// =====================
-// START
-// =====================
 createDeck();
 shuffle();
 deal();
@@ -712,4 +666,4 @@ render();
 </html>
 """
 
-st.components.v1.html(html_code, height=950, scrolling=True)
+st.components.v1.html(html_code, height=800, scrolling=False)
