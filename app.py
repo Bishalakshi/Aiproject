@@ -1,6 +1,7 @@
-from groq import Groq
-import random
 import streamlit as st
+import random
+import os
+from groq import Groq
 
 API_KEY = os.environ.get("API_KEY")
 client = Groq(api_key=API_KEY)
@@ -18,50 +19,38 @@ class UnoGame:
         self.start_round()
 
     def start_round(self):
-
         self.create_deck()
-
         self.player_hand = [self.draw_card() for _ in range(7)]
         self.system_hand = [self.draw_card() for _ in range(7)]
-
         self.discard = []
         self.round_over = False
         self.winner = None
         self.wild_color = None
-
         card = self.draw_card()
-
         while card.startswith("Wild_Draw_4"):
             self.deck.append(card)
             random.shuffle(self.deck)
             card = self.draw_card()
-
         self.current_card = card
-
         if card.startswith("Wild"):
             self.current_color = random.choice(self.colors)
         else:
             self.current_color = card.split("_")[0]
-
         self.turn = "player"
         self.message = ""
         self.uno_called = False
 
     def create_deck(self):
         self.deck = []
-
         for color in self.colors:
             for i in range(10):
                 self.deck.append(f"{color}_{i}.jpg")
-
             self.deck.append(f"{color}_Skip.jpg")
             self.deck.append(f"{color}_Reverse.jpg")
             self.deck.append(f"{color}_Draw_2.jpg")
-
         for _ in range(4):
             self.deck.append("Wild.jpg")
             self.deck.append("Wild_Draw_4.jpg")
-
         random.shuffle(self.deck)
 
     def draw_card(self):
@@ -70,65 +59,46 @@ class UnoGame:
         return self.deck.pop()
 
     def playable(self, card):
-
         if card.startswith("Wild"):
             return True
-
         color = card.split("_")[0]
         value = card.replace(".jpg", "").split("_")[-1]
         top_value = self.current_card.replace(".jpg", "").split("_")[-1]
-
         return color == self.current_color or value == top_value
 
     def player_play(self, card, chosen_color):
-
         if self.round_over:
             return False
-
         if card not in self.player_hand or not self.playable(card):
             return False
-
         self.player_hand.remove(card)
         self.discard.append(self.current_card)
         self.current_card = card
         self.wild_color = None
-
         if card.startswith("Wild"):
             self.current_color = chosen_color
         else:
             self.current_color = card.split("_")[0]
-
         extra_turn = self.apply_action(card, "system")
-
         if len(self.player_hand) == 1:
             self.uno_called = False
-
         if len(self.player_hand) == 0:
             self.finish_round("player")
             return True
-
         self.update_live_score()
-
         if not extra_turn:
             self.system_turn()
-
         return True
 
     def system_turn(self):
-
         if self.round_over:
             return
-
         playable_cards = [c for c in self.system_hand if self.playable(c)]
-
         if playable_cards:
-
             card = playable_cards[0]
             self.system_hand.remove(card)
-
             self.discard.append(self.current_card)
             self.current_card = card
-
             if card.startswith("Wild"):
                 color = random.choice(self.colors)
                 self.current_color = color
@@ -137,48 +107,37 @@ class UnoGame:
             else:
                 self.current_color = card.split("_")[0]
                 self.message = f"System played {card}"
-
             extra_turn = self.apply_action(card, "player")
-
             if len(self.system_hand) == 0:
                 self.finish_round("system")
                 return
-
             self.update_live_score()
-
             if extra_turn:
                 self.system_turn()
             else:
                 self.turn = "player"
-
         else:
             new = self.draw_card()
             if new:
                 self.system_hand.append(new)
                 self.message = "System draws a card"
-
             self.turn = "player"
 
     def apply_action(self, card, target):
-
         hand = self.player_hand if target == "player" else self.system_hand
-
         if "Skip" in card or "Reverse" in card:
             self.message = f"{target} skipped"
             return True
-
         if "Draw_2" in card:
             for _ in range(2):
                 hand.append(self.draw_card())
             self.message = f"{target} draws 2 cards"
             return True
-
         if "Wild_Draw_4" in card:
             for _ in range(4):
                 hand.append(self.draw_card())
             self.message = f"{target} draws 4 cards"
             return True
-
         return False
 
     def call_uno(self):
@@ -209,12 +168,9 @@ class UnoGame:
         self.update_live_score()
 
     def ai_hint(self):
-
         playable_cards = [c for c in self.player_hand if self.playable(c)]
-
         if not playable_cards:
             return "Draw"
-
         return playable_cards[0]
 
 
